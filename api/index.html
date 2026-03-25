@@ -3,49 +3,56 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ShopSense AI | Intelligent Recommendations Dashboard</title>
+    <title>ShopSense AI | Advanced Recommendation Engine</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
-    <!-- Chart.js -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- React & Babel for single-file interactivity -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <style>
-        body { font-family: 'Outfit', sans-serif; background-color: #0f172a; color: #f8fafc; }
-        .glass { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.05); }
-        .gradient-text { background: linear-gradient(to right, #818cf8, #c084fc); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
-        .product-card:hover { transform: translateY(-5px); border-color: #6366f1; }
+        body { font-family: 'Inter', sans-serif; background-color: #020617; color: #f8fafc; overflow: hidden; height: 100vh; }
+        .sidebar { background: #0f172a; border-right: 1px solid rgba(255,255,255,0.05); width: 280px; flex-shrink: 0; }
+        .main-content { flex-grow: 1; overflow-y: auto; background: radial-gradient(circle at 50% 0%, rgba(79, 70, 229, 0.05) 0%, transparent 70%); }
+        .nav-link { transition: all 0.2s; cursor: pointer; border-radius: 12px; margin-bottom: 4px; padding: 12px 16px; font-weight: 500; font-size: 0.875rem; color: #94a3b8; display: flex; align-items: center; gap: 12px; }
+        .nav-link:hover { background: rgba(255,255,255,0.03); color: #fff; }
+        .nav-link.active { background: #4f46e5; color: #fff; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3); }
+        .app-header { height: 72px; border-bottom: 1px solid rgba(255,255,255,0.03); background: rgba(2, 6, 23, 0.7); backdrop-filter: blur(20px); top: 0; z-index: 100; sticky: true; }
+        .card { background: rgba(15, 23, 42, 0.5); border: 1px solid rgba(255,255,255,0.05); border-radius: 24px; transition: transform 0.3s, border-color 0.3s; }
+        .card:hover { border-color: rgba(79, 70, 229, 0.4); }
+        .badge { font-weight: 800; font-size: 0.65rem; padding: 2px 8px; border-radius: 6px; letter-spacing: 0.05em; }
         ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 10px; }
     </style>
 </head>
 <body>
     <div id="root"></div>
 
     <script type="text/babel">
-const { useState, useEffect, useRef } = React;
+        const { useState, useEffect, useRef } = React;
 
         const DEMO_USERS = ['10001', '10002', '10003', '10004', '10005'];
 
         function Dashboard() {
             const [view, setView] = useState('recommendations');
             const [userId, setUserId] = useState('10001');
-            const [userProfile, setUserProfile] = useState({ name: 'Alex Thompson', level: 'Platinum Member', avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100' });
             const [recommendations, setRecommendations] = useState([]);
             const [allProducts, setAllProducts] = useState([]);
             const [categories, setCategories] = useState(['All']);
             const [loading, setLoading] = useState(false);
             const [search, setSearch] = useState('');
             const [selectedCat, setSelectedCat] = useState('All');
+            const [userProfile, setUserProfile] = useState({ 
+                name: 'Alex Thompson', 
+                level: 'Platinum Elite', 
+                avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100',
+                spent: '₹48,290',
+                orders: 124
+            });
 
             const chartRef = useRef(null);
             const chartInstance = useRef(null);
-            const [mounted, setMounted] = useState(false);
-            useEffect(() => setMounted(true), []);
 
             const ProductImage = ({ description, stockCode }) => {
                 const desc = description?.toLowerCase() || '';
@@ -63,7 +70,6 @@ const { useState, useEffect, useRef } = React;
                 return <img src={src} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={description} loading="lazy" />;
             };
 
-            // Fetch initial products
             useEffect(() => {
                 const loadData = async () => {
                     try {
@@ -75,360 +81,340 @@ const { useState, useEffect, useRef } = React;
                         const cats = await catRes.json();
                         setAllProducts(prods);
                         setCategories(cats.includes('All') ? cats : ['All', ...cats]);
-                    } catch (err) {
-                        console.error("Failed to load products/categories", err);
-                    }
+                    } catch (err) { console.error(err); }
                 };
                 loadData();
             }, []);
 
-            // Generate Recommendations
             const generateRecommendations = async (id = userId) => {
                 setLoading(true);
                 try {
                     const res = await fetch(`/api/recommend/${id}?n=10`);
                     const data = await res.json();
                     if(data.recommendations) {
-                        const fullRecs = data.recommendations.map(id => {
-                            const found = allProducts.find(p => p.StockCode === id || p.product_id === id);
-                            return found || { StockCode: id, Description: `Premium Product ${id}`, Category: 'AI Choice', Price: 999 };
-                        });
-                        setRecommendations(fullRecs);
+                        setRecommendations(data.recommendations.map(sc => {
+                            const found = allProducts.find(p => String(p.StockCode) === String(sc));
+                            return found || { StockCode: sc, Description: `Premium Discovery ${sc}`, Category: 'AI Choice', Price: 999 };
+                        }));
                         setUserId(id);
-                    } else if (data.error) {
-                        alert(data.error);
-                    }
-                } catch (err) {
-                    alert("Error reaching engine. Ensure the API is healthy.");
-                }
+                        
+                        const names = ["Jordan Black", "Sarah Chen", "Marcus Vane", "Elara Moon", "David West"];
+                        const tiers = ["Platinum Member", "Gold Member", "Diamond VIP", "Silver Tier", "Elite Plus"];
+                        const avatars = [
+                            "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100",
+                            "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=100",
+                            "https://images.unsplash.com/photo-1527980965255-d3b416303d12?auto=format&fit=crop&q=80&w=100",
+                            "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&q=80&w=100",
+                            "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=100"
+                        ];
+                        const idx = parseInt(id) % 5;
+                        setUserProfile({
+                            name: names[idx],
+                            level: tiers[idx],
+                            avatar: avatars[idx],
+                            spent: `₹${(15000 + (parseInt(id) % 5) * 6420).toLocaleString()}`,
+                            orders: 12 + (parseInt(id) % 15)
+                        });
+                    } else if (data.error) alert(data.error);
+                } catch (err) { alert("API Offline"); }
                 setLoading(false);
             };
-
-            // Handle View Changes
-            useEffect(() => {
-                if (view === 'analytics' && chartRef.current) {
-                    setTimeout(renderChart, 100);
-                }
-            }, [view]);
 
             const renderChart = () => {
                 if (chartInstance.current) chartInstance.current.destroy();
                 if (!chartRef.current) return;
                 const ctx = chartRef.current.getContext('2d');
-                
                 const counts = {};
                 allProducts.forEach(p => {
                     const cat = p.Category || 'Other';
                     counts[cat] = (counts[cat] || 0) + 1;
                 });
-
                 chartInstance.current = new Chart(ctx, {
                     type: 'doughnut',
                     data: {
                         labels: Object.keys(counts).slice(0, 6),
                         datasets: [{
                             data: Object.values(counts).slice(0, 6),
-                            backgroundColor: ['#6366f1', '#a855f7', '#f43f5e', '#10b981', '#f59e0b', '#3b82f6'],
-                            borderWidth: 0
+                            backgroundColor: ['#4f46e5', '#9333ea', '#db2777', '#059669', '#d97706', '#2563eb'],
+                            borderWidth: 0,
+                            hoverOffset: 20
                         }]
                     },
-                    options: {
-                        cutout: '70%',
-                        responsive: true,
-                        plugins: { 
-                            legend: { position: 'bottom', labels: { color: '#94a3b8', padding: 20, font: { family: 'Outfit', size: 12 } } } 
-                        }
-                    }
+                    options: { cutout: '80%', responsive: true, plugins: { legend: { display: false } } }
                 });
             };
 
-            const filteredProducts = allProducts.filter(p => {
-                const matchesSearch = p.Description?.toLowerCase().includes(search.toLowerCase()) || 
-                                     p.StockCode?.toString().includes(search);
-                const matchesCat = selectedCat === 'All' || p.Category === selectedCat;
-                return matchesSearch && matchesCat;
-            });
+            useEffect(() => { if (view === 'analytics') setTimeout(renderChart, 100); }, [view, allProducts]);
+
+            const filteredProducts = allProducts.filter(p => 
+                (selectedCat === 'All' || p.Category === selectedCat) &&
+                p.Description?.toLowerCase().includes(search.toLowerCase())
+            );
 
             return (
-                <div className="min-h-screen flex flex-col items-center pb-20">
-                    {/* Header */}
-                    <header className="w-full max-w-7xl px-8 py-8 flex flex-col md:flex-row justify-between items-center gap-6">
-                        <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-3xl shadow-lg shadow-indigo-500/20">🛍️</div>
-                            <div>
-                                <h1 className="text-4xl font-black gradient-text tracking-tighter">ShopSense AI</h1>
-                                <p className="text-white/40 text-xs font-bold uppercase tracking-[0.3em] mt-1">Intelligence in Motion</p>
+                <div className="flex h-screen w-full">
+                    {/* Sidebar */}
+                    <aside className="sidebar flex flex-col p-6">
+                        <div className="flex items-center gap-3 mb-10 px-2">
+                            <div className="w-9 h-9 rounded-lg bg-indigo-600 flex items-center justify-center text-xl shadow-lg shadow-indigo-500/20">🛍️</div>
+                            <span className="text-xl font-extrabold tracking-tighter">ShopSense<span className="text-indigo-400 text-sm ml-1 font-mono">PRO</span></span>
+                        </div>
+
+                        <div className="space-y-1">
+                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-4 mb-4">Core Engine</p>
+                            <div onClick={() => setView('recommendations')} className={`nav-link ${view === 'recommendations' ? 'active' : ''}`}>
+                                <span className="text-lg">⚡</span> Intelligence
+                            </div>
+                            <div onClick={() => setView('explorer')} className={`nav-link ${view === 'explorer' ? 'active' : ''}`}>
+                                <span className="text-lg">📂</span> Inventory
+                            </div>
+                            <div onClick={() => setView('analytics')} className={`nav-link ${view === 'analytics' ? 'active' : ''}`}>
+                                <span className="text-lg">📊</span> Analytics
+                            </div>
+                            <div onClick={() => setView('profile')} className={`nav-link ${view === 'profile' ? 'active' : ''}`}>
+                                <span className="text-lg">👤</span> User Profile
                             </div>
                         </div>
-                        <nav className="flex gap-2 glass rounded-2xl p-1.5 text-sm font-semibold shadow-xl">
-                            {['recommendations', 'explorer', 'analytics', 'profile'].map(v => (
-                                <button 
-                                    key={v}
-                                    onClick={() => setView(v)} 
-                                    className={`px-6 py-2.5 rounded-xl transition-all capitalize ${view === v ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'}`}>
-                                    {v}
-                                </button>
-                            ))}
-                        </nav>
-                        <div className="hidden lg:flex items-center gap-4 pl-6 border-l border-white/10">
-                            <div className="text-right">
-                                <p className="text-sm font-bold text-white leading-tight">{userProfile.name}</p>
-                                <p className="text-[10px] font-black uppercase tracking-widest text-indigo-400">{userProfile.level}</p>
+
+                        <div className="mt-auto p-4 bg-white/[0.02] border border-white/5 rounded-2xl">
+                            <div className="flex items-center gap-3 mb-2">
+                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+                                <span className="text-[9px] font-bold text-slate-400 uppercase">Engine Status: Optimal</span>
                             </div>
-                            <div className="w-12 h-12 rounded-2xl border-2 border-indigo-500/20 p-0.5 group cursor-pointer relative">
-                                <img src={userProfile.avatar} className="w-full h-full object-cover rounded-[0.8rem]" />
-                                <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 border-2 border-[#0f172a]"></div>
-                            </div>
+                            <div className="text-[10px] text-slate-500 leading-tight mb-4">Last sync: {new Date().toLocaleTimeString()}</div>
+                            <button className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-[10px] font-bold text-white transition-all shadow-lg shadow-indigo-600/20">Upgrade Plan</button>
                         </div>
-                    </header>
+                    </aside>
 
-                    <main className="w-full max-w-7xl px-8 py-4">
-                        {/* Recommendations View */}
-                        {view === 'recommendations' && (
-                            <section className="animate-in fade-in transition-all duration-500">
-                                <div className="glass rounded-[2.5rem] p-12 flex flex-col lg:flex-row items-center justify-between gap-16 mb-16 relative overflow-hidden border-indigo-500/10">
-                                    <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-600/10 blur-[100px] -z-10 rounded-full"></div>
-                                    <div className="flex-1 z-10">
-                                        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-black uppercase tracking-widest mb-8">
-                                            <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></span>
-                                            New Release: ALS v2.4
-                                        </div>
-                                        <h2 className="text-6xl font-black mb-8 leading-[1.1] tracking-tighter">Elevate your <br/><span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400">Inventory Intelligence.</span></h2>
-                                        <p className="text-slate-400 text-xl font-medium mb-12 max-w-xl leading-relaxed">Experience a paradigm shift in personalized commerce. Our AI doesn't just predict; it understands customer intent.</p>
-                                        
-                                        <div className="mb-10">
-                                            <div className="flex flex-wrap gap-3">
-                                                {DEMO_USERS.map(id => (
-                                                    <button 
-                                                        key={id}
-                                                        onClick={() => generateRecommendations(id)}
-                                                        className={`px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border ${userId === id ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-600/40' : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10'}`}>
-                                                        User {id}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        </div>
+                    {/* Main Content */}
+                    <div className="main-content flex flex-col">
+                        <header className="app-header flex items-center justify-between px-10">
+                            <div className="flex-1 max-w-xl">
+                                <div className="relative">
+                                    <input type="text" placeholder="Global search..." value={search} onChange={(e) => setSearch(e.target.value)} className="w-full bg-white/5 border border-white/5 rounded-xl py-2 px-10 text-sm outline-none focus:border-indigo-500/50 transition-all font-medium" />
+                                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 opacity-30 text-xs">🔍</span>
+                                </div>
+                            </div>
 
-                                        <div className="flex gap-4 max-w-md p-2.5 bg-slate-900/60 backdrop-blur-3xl rounded-[2.5rem] border border-white/10 shadow-3xl">
-                                            <input 
-                                                type="text" 
-                                                value={userId}
-                                                onChange={(e) => setUserId(e.target.value)}
-                                                className="flex-1 bg-transparent rounded-2xl px-6 py-4 outline-none text-lg font-bold placeholder:text-slate-700"
-                                                placeholder="Target ID..."
-                                            />
-                                            <button 
-                                                onClick={() => generateRecommendations()}
-                                                disabled={loading}
-                                                className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 px-8 py-5 rounded-[1.8rem] font-bold text-sm uppercase tracking-widest transition-all disabled:opacity-50 shadow-2xl shadow-indigo-600/30 active:scale-95">
-                                                {loading ? 'Analyzing...' : 'Execute AI'}
-                                            </button>
-                                        </div>
+                            <div className="flex items-center gap-6">
+                                <div className="flex gap-4 opacity-50 text-xl border-r border-white/5 pr-6">
+                                    <span className="cursor-pointer hover:opacity-100">⚙️</span>
+                                    <span className="cursor-pointer hover:opacity-100 relative">
+                                        🔔
+                                        <div className="absolute top-0 right-0 w-2 h-2 bg-rose-500 rounded-full border-2 border-[#020617]"></div>
+                                    </span>
+                                </div>
+                                <div onClick={() => setView('profile')} className="flex items-center gap-3 cursor-pointer group">
+                                    <div className="text-right">
+                                        <p className="text-xs font-bold text-white leading-tight group-hover:text-indigo-400">{userProfile.name}</p>
+                                        <p className="text-[9px] font-bold text-indigo-500 uppercase">{userProfile.level}</p>
                                     </div>
-                                    <div className="w-full lg:w-[45%] flex justify-center relative translate-x-8">
-                                        <div className="w-full aspect-square rounded-[4rem] overflow-hidden relative group">
-                                            <img src="/static/images/hero.png" alt="AI Shop" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000 opacity-80" />
-                                            <div className="absolute inset-0 bg-gradient-to-t from-[#0f172a] via-transparent to-transparent"></div>
-                                        </div>
-                                        <div className="absolute -bottom-8 -left-8 glass p-6 rounded-3xl flex items-center gap-4 animate-float border-white/10 shadow-3xl">
-                                            <div className="w-4 h-4 rounded-full bg-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.8)]"></div>
-                                            <div>
-                                                <p className="text-[10px] font-black uppercase tracking-widest text-emerald-400">System Status</p>
-                                                <p className="text-sm font-bold text-white">Live AI Active</p>
-                                            </div>
-                                        </div>
-                                        <div className="absolute -top-6 -right-6 glass p-6 rounded-3xl animate-pulse text-4xl shadow-3xl border-white/10">✨</div>
+                                    <div className="w-10 h-10 rounded-xl overflow-hidden border border-white/5 group-hover:border-indigo-500/50 transition-all">
+                                        <img src={userProfile.avatar} className="w-full h-full object-cover" />
                                     </div>
                                 </div>
+                            </div>
+                        </header>
 
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-8">
-                                    {recommendations.length > 0 ? (
-                                        recommendations.map((item, idx) => (
-                                            <div key={idx} className="glass rounded-[2rem] overflow-hidden p-6 product-card border border-white/5 transition-all group hover:bg-white/[0.03]">
-                                                <div className="w-full aspect-square bg-slate-800/40 rounded-3xl mb-6 relative overflow-hidden flex items-center justify-center">
-                                                    <ProductImage description={item.Description} stockCode={item.StockCode} />
-                                                    <div className="absolute top-4 right-4 glass px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest text-indigo-400 backdrop-blur-md">98% Match</div>
-                                                </div>
-                                                <div className="flex justify-between items-start mb-2">
-                                                    <span className="text-[10px] text-indigo-400 font-black uppercase tracking-[0.2em]">{item.Category || 'Discovery'}</span>
-                                                    <span className="text-[10px] text-slate-500 font-mono">#{item.StockCode}</span>
-                                                </div>
-                                                <h3 className="font-bold text-lg mb-6 line-clamp-2 h-14 group-hover:text-indigo-300 transition-colors">{item.Description}</h3>
-                                                <div className="flex justify-between items-center pt-5 border-t border-slate-700/50">
-                                                    <div className="flex flex-col">
-                                                        <span className="text-slate-500 text-[10px] uppercase font-bold tracking-tighter">Price</span>
-                                                        <span className="text-white font-black text-xl">₹{item.Price || '799'}</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-1 bg-yellow-400/10 px-2 py-1 rounded-lg">
-                                                        <span className="text-yellow-400 text-xs">★</span>
-                                                        <span className="text-yellow-400 text-xs font-bold">4.{Math.floor(Math.random()*9)}</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        ))
-                                    ) : !loading && (
-                                        <div className="col-span-full py-32 text-center glass rounded-3xl border-dashed border-2 border-slate-700/50">
-                                            <span className="text-6xl mb-6 block">🔍</span>
-                                            <p className="text-slate-500 text-2xl font-light">Enter a User ID or select a demo to see the magic.</p>
-                                        </div>
-                                    )}
-                                </div>
-                            </section>
-                        )}
-
-                        {/* Explorer View */}
-                        {view === 'explorer' && (
-                            <section className="animate-in slide-in-from-bottom transition-all">
-                                <div className="mb-12 flex flex-col md:flex-row gap-6 p-4 glass rounded-[2rem]">
-                                    <div className="flex-1 relative">
-                                        <input 
-                                            type="text" 
-                                            value={search}
-                                            onChange={(e) => setSearch(e.target.value)}
-                                            className="w-full bg-slate-900 border border-slate-700 rounded-2xl px-6 py-4 pl-14 outline-none focus:border-indigo-500 transition-all font-medium"
-                                            placeholder="Search product inventory..."
-                                        />
-                                        <span className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-500 text-xl">🔍</span>
-                                    </div>
-                                    <select 
-                                        value={selectedCat}
-                                        onChange={(e) => setSelectedCat(e.target.value)}
-                                        className="bg-slate-900 border border-slate-700 rounded-2xl px-8 py-4 outline-none font-bold text-slate-300 cursor-pointer hover:border-indigo-500 transition-all">
-                                        {categories.map(c => <option key={c} value={c}>{c}</option>)}
-                                    </select>
-                                </div>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-                                    {filteredProducts.slice(0, 30).map((item, idx) => (
-                                        <div key={idx} className="glass rounded-3xl p-5 hover:bg-white/[0.03] cursor-pointer transition-all border border-white/5 hover:border-indigo-500/50 group">
-                                            <div className="w-full aspect-[4/3] bg-slate-800/40 rounded-2xl mb-4 overflow-hidden">
-                                                <ProductImage description={item.Description} stockCode={item.StockCode} />
-                                            </div>
-                                            <div className="text-[10px] text-slate-500 mb-2 font-mono">{item.StockCode}</div>
-                                            <div className="font-bold text-sm line-clamp-2 mb-4 h-10 group-hover:text-indigo-400 transition-colors uppercase tracking-tighter">{item.Description}</div>
-                                            <div className="flex justify-between items-end mt-auto">
-                                                <div className="text-indigo-400 font-black text-base">₹{item.Price || '499'}</div>
-                                                <div className="text-[9px] bg-slate-800 px-2 py-1 rounded font-bold text-slate-400 group-hover:bg-indigo-600 group-hover:text-white transition-colors">{item.Category || 'General'}</div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </section>
-                        )}
-
-                        {/* Analytics View */}
-                        {view === 'analytics' && (
-                            <section className="animate-in fade-in transition-all flex flex-col items-center">
-                                <div className="glass rounded-[3rem] p-12 w-full max-w-4xl shadow-2xl relative border-white/5">
-                                    <div className="absolute -top-10 -left-10 w-40 h-40 bg-purple-600/10 blur-[60px] rounded-full"></div>
-                                    <div className="mb-12 text-center">
-                                        <h2 className="text-4xl font-black mb-3">Inventory Insights</h2>
-                                        <p className="text-slate-400 font-medium">Distribution of products across various shopping categories.</p>
-                                    </div>
-                                    <div className="flex flex-col lg:flex-row items-center gap-16">
-                                        <div className="w-full lg:w-1/2">
-                                            <canvas ref={chartRef} className="max-h-[350px]"></canvas>
-                                        </div>
-                                        <div className="w-full lg:w-1/2 grid grid-cols-1 gap-6">
-                                            <div className="bg-indigo-500/10 border border-indigo-500/20 p-8 rounded-[2rem] flex items-center justify-between group hover:bg-indigo-500/20 transition-all">
-                                                <div>
-                                                    <p className="text-slate-400 text-xs font-black uppercase tracking-widest mb-1">Total SKU Inventory</p>
-                                                    <p className="text-5xl font-black text-indigo-400">{allProducts.length}</p>
-                                                </div>
-                                                <div className="text-5xl opacity-40 group-hover:scale-125 transition-transform">📦</div>
-                                            </div>
-                                            <div className="bg-purple-500/10 border border-purple-500/20 p-8 rounded-[2rem] flex items-center justify-between group hover:bg-purple-500/20 transition-all">
-                                                <div>
-                                                    <p className="text-slate-400 text-xs font-black uppercase tracking-widest mb-1">Active Categories</p>
-                                                    <p className="text-5xl font-black text-purple-400">{categories.length - 1}</p>
-                                                </div>
-                                                <div className="text-5xl opacity-40 group-hover:scale-125 transition-transform">🏷️</div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </section>
-                        )}
-
-                        {/* Profile View */}
-                        {view === 'profile' && (
-                            <section className="animate-in fade-in transition-all flex flex-col items-center">
-                                <div className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-3 gap-8">
-                                    <div className="lg:col-span-1 glass rounded-[3rem] p-10 flex flex-col items-center text-center gap-6 border-white/5">
-                                        <div className="w-40 h-40 rounded-[3.5rem] p-1 bg-gradient-to-br from-indigo-500 to-purple-600">
-                                            <img src={userProfile.avatar} className="w-full h-full object-cover rounded-[3.2rem]" />
-                                        </div>
+                        <main className="p-10">
+                            {view === 'recommendations' && (
+                                <div className="space-y-10 animate-in fade-in transition-all duration-500">
+                                    <div className="flex justify-between items-end">
                                         <div>
-                                            <h2 className="text-3xl font-black mb-1">{userProfile.name}</h2>
-                                            <p className="text-indigo-400 font-bold uppercase tracking-widest text-xs">{userProfile.level}</p>
+                                            <h2 className="text-4xl font-extrabold tracking-tighter mb-2">Advanced Intelligence</h2>
+                                            <p className="text-slate-400 font-medium">Hyper-personalized recommendation engine powered by ALS Matrix Factorization.</p>
                                         </div>
-                                        <div className="w-full h-px bg-white/10 my-4"></div>
-                                        <div className="w-full grid grid-cols-2 gap-4">
-                                            <div className="bg-white/5 p-4 rounded-3xl">
-                                                <p className="text-slate-500 text-[10px] font-bold uppercase mb-1">Total Spent</p>
-                                                <p className="text-xl font-black text-white">₹48,290</p>
-                                            </div>
-                                            <div className="bg-white/5 p-4 rounded-3xl">
-                                                <p className="text-slate-500 text-[10px] font-bold uppercase mb-1">Orders</p>
-                                                <p className="text-xl font-black text-white">124</p>
-                                            </div>
+                                        <div className="flex gap-2">
+                                            {DEMO_USERS.map(id => (
+                                                <button key={id} onClick={() => generateRecommendations(id)} className={`px-4 py-2 rounded-xl text-[10px] font-bold uppercase transition-all border ${userId === id ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-600/20' : 'bg-white/5 border-white/5 text-slate-500 hover:text-slate-300'}`}>ID: {id}</button>
+                                            ))}
                                         </div>
-                                        <button className="w-full mt-4 bg-white/5 hover:bg-white/10 border border-white/10 py-4 rounded-2xl font-bold text-sm transition-all">Edit Preferences</button>
                                     </div>
-                                    <div className="lg:col-span-2 flex flex-col gap-8">
-                                        <div className="glass rounded-[3rem] p-10 border-white/5 shadow-2xl">
-                                            <h3 className="text-xl font-black mb-8 flex items-center gap-3">
-                                                <span className="w-8 h-8 rounded-xl bg-orange-500/20 text-orange-400 flex items-center justify-center text-sm">📈</span>
-                                                Shopping Trends
-                                            </h3>
-                                            <div className="space-y-6">
-                                                {['Electronics', 'Footwear', 'Accessories'].map((cat, i) => (
-                                                    <div key={i} className="flex flex-col gap-3">
-                                                        <div className="flex justify-between items-center text-sm font-bold">
-                                                            <span>{cat}</span>
-                                                            <span className="text-slate-500">{(85 - i*20)}% Engagement</span>
+
+                                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                                        <div className="lg:col-span-8 space-y-8">
+                                            <div className="card p-8 flex items-center justify-between gap-12 relative overflow-hidden">
+                                                <div className="relative z-10 flex-1">
+                                                    <span className="badge bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 block w-fit mb-4">ALGORITHM V2.55-R</span>
+                                                    <h3 className="text-2xl font-black mb-4 leading-tight">Predicting the next big trend <br/>for user <span className="text-indigo-400">{userId}</span></h3>
+                                                    <div className="flex gap-4 items-center">
+                                                        <input type="text" value={userId} onChange={(e) => setUserId(e.target.value)} className="bg-white/5 border border-white/10 rounded-xl px-4 py-3 outline-none focus:border-indigo-500/50 text-lg font-bold w-40" />
+                                                        <button onClick={() => generateRecommendations()} disabled={loading} className="bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-3.5 rounded-xl font-bold transition-all shadow-xl shadow-indigo-600/30 disabled:opacity-50 active:scale-95">{loading ? 'Computing...' : 'Run Analysis'}</button>
+                                                    </div>
+                                                </div>
+                                                <div className="w-1/3 aspect-square rounded-[2rem] overflow-hidden relative border border-white/5">
+                                                    <img src="/static/images/hero.png" className="w-full h-full object-cover opacity-80" />
+                                                    <div className="absolute inset-0 bg-gradient-to-t from-[#020617] via-transparent to-transparent"></div>
+                                                </div>
+                                            </div>
+
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+                                                {recommendations.map((item, i) => (
+                                                    <div key={i} className="card p-5 group flex flex-col h-full">
+                                                        <div className="w-full aspect-square rounded-2xl bg-white/5 mb-4 overflow-hidden relative">
+                                                            <ProductImage description={item.Description} stockCode={item.StockCode} />
+                                                            <div className="absolute top-3 right-3 bg-indigo-600 text-white text-[8px] font-black px-2 py-1 rounded-md uppercase tracking-widest shadow-lg">99% Match</div>
                                                         </div>
-                                                        <div className="w-full h-3 bg-white/5 rounded-full overflow-hidden">
-                                                            <div className="h-full bg-indigo-500 rounded-full shadow-[0_0_10px_rgba(99,102,241,0.5)]" style={{ width: `${85 - i*20}%` }}></div>
+                                                        <div className="flex-1">
+                                                            <div className="flex justify-between items-start mb-2">
+                                                                <span className="text-[9px] font-bold text-indigo-400 uppercase tracking-widest">{item.Category || 'Discovery'}</span>
+                                                                <span className="text-[9px] text-slate-500 font-mono">#{item.StockCode}</span>
+                                                            </div>
+                                                            <h4 className="font-bold text-sm mb-4 line-clamp-1 group-hover:text-indigo-400 transition-colors">{item.Description}</h4>
+                                                            <div className="flex justify-between items-center mt-auto">
+                                                                <span className="font-black text-lg">₹{item.Price || '499'}</span>
+                                                                <button className="w-8 h-8 rounded-lg bg-white/5 hover:bg-indigo-600 transition-all flex items-center justify-center">🛒</button>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 ))}
                                             </div>
                                         </div>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                            <div className="glass rounded-[3rem] p-8 border-white/5 bg-indigo-500/10 shadow-xl">
-                                                <h4 className="text-xs font-black uppercase tracking-widest text-indigo-400 mb-2">AI Insights</h4>
-                                                <p className="text-sm font-medium leading-relaxed">Frequent interest in tech gadget ecosystem suggests high potential for cross-device recommendations.</p>
+
+                                        <div className="lg:col-span-4 space-y-8">
+                                            <div className="card p-8 border-indigo-500/20 bg-indigo-500/[0.03]">
+                                                <h4 className="text-xs font-bold text-indigo-400 uppercase tracking-widest mb-6 px-1">Engine Status</h4>
+                                                <div className="space-y-6">
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="text-sm font-medium text-slate-300">Model Accuracy</span>
+                                                        <span className="text-sm font-bold">98.4%</span>
+                                                    </div>
+                                                    <div className="w-full h-1.5 bg-white/5 rounded-full"><div className="w-[98%] h-full bg-indigo-500 rounded-full shadow-[0_0_10px_rgba(79,70,229,0.5)]"></div></div>
+                                                    
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="text-sm font-medium text-slate-300">Computation Time</span>
+                                                        <span className="text-sm font-bold">42ms</span>
+                                                    </div>
+                                                    <div className="w-full h-1.5 bg-white/5 rounded-full"><div className="w-[15%] h-full bg-emerald-500 rounded-full shadow-[0_0_10px_rgba(16,185,129,0.5)]"></div></div>
+
+                                                    <div className="pt-6 border-t border-white/5">
+                                                        <p className="text-[10px] text-slate-500 leading-relaxed italic">The ALS engine is currently pre-loaded with the full user-item matrix of 200k interactions for maximum speed.</p>
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <div className="glass rounded-[3rem] p-8 border-white/5 bg-purple-500/10 shadow-xl">
-                                                <h4 className="text-xs font-black uppercase tracking-widest text-purple-400 mb-2">Next Milestone</h4>
-                                                <p className="text-sm font-medium leading-relaxed">Spend ₹1,710 more to unlock 'Diamond Tier' and 5% additional cashback on all AI choices.</p>
+                                            <div className="card p-8 bg-purple-500/[0.03] border-purple-500/20">
+                                                <h4 className="text-xs font-bold text-purple-400 uppercase tracking-widest mb-4">Deep Insights</h4>
+                                                <p className="text-sm text-slate-300 leading-normal">System detected a 14% increase in checkout similarity for items recommended within the Footwear category last hour.</p>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-                            </section>
-                        )}
-                    </main>
+                            )}
 
-                    <footer className="mt-20 py-12 text-slate-500 text-sm border-t border-slate-800 w-full max-w-7xl flex flex-col md:flex-row justify-between items-center px-8 gap-4">
-                        <div className="flex items-center gap-4">
-                            <span className="font-bold text-slate-400 tracking-tighter text-lg">SHOPSENSE AI</span>
-                            <span className="text-slate-700">|</span>
-                            <span>© 2026 Professional AI Suite</span>
-                        </div>
-                        <div className="flex gap-8 font-bold text-xs uppercase tracking-widest italic text-indigo-500/50">
-                            <span>Vercel Edge Ready</span>
-                            <span>ALS Engine v2.4</span>
-                            <span>FastAPI Backend</span>
-                        </div>
-                    </footer>
+                            {view === 'explorer' && (
+                                <div className="space-y-8 animate-in slide-in-from-bottom duration-500">
+                                    <div className="flex justify-between items-center p-2 bg-white/5 rounded-3xl border border-white/5 px-6">
+                                        <div className="flex gap-4">
+                                            <select value={selectedCat} onChange={(e) => setSelectedCat(e.target.value)} className="bg-transparent text-sm font-bold outline-none cursor-pointer border-r border-white/10 pr-6 mr-4">{categories.map(c => <option key={c} value={c}>{c}</option>)}</select>
+                                            <span className="text-slate-500 text-sm font-medium">Viewing {filteredProducts.length} unique SKUs</span>
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-6">
+                                        {filteredProducts.slice(0, 30).map((p, i) => (
+                                            <div key={i} className="card p-4 group cursor-pointer hover:bg-white/[0.03]">
+                                                <div className="w-full aspect-square rounded-xl bg-white/5 mb-4 overflow-hidden">
+                                                    <ProductImage description={p.Description} stockCode={p.StockCode} />
+                                                </div>
+                                                <h5 className="font-bold text-[11px] mb-2 uppercase line-clamp-1 group-hover:text-indigo-400">{p.Description}</h5>
+                                                <div className="flex justify-between">
+                                                    <span className="font-black text-xs">₹{p.Price || '499'}</span>
+                                                    <span className="text-[8px] font-bold text-slate-500">{p.StockCode}</span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {view === 'analytics' && (
+                                <div className="flex items-center justify-center min-h-[60vh] animate-in zoom-in duration-500">
+                                    <div className="card p-12 w-full max-w-4xl flex items-center gap-16">
+                                        <div className="w-1/2 relative">
+                                            <canvas ref={chartRef} className="max-h-[350px]"></canvas>
+                                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center">
+                                                <p className="text-4xl font-black">{allProducts.length}</p>
+                                                <p className="text-[10px] font-bold uppercase text-slate-500">Total SKU</p>
+                                            </div>
+                                        </div>
+                                        <div className="w-1/2 space-y-8">
+                                            <div>
+                                                <h3 className="text-3xl font-black mb-2">Inventory Mix</h3>
+                                                <p className="text-slate-400 font-medium">Real-time SKU distribution across top-performing categories.</p>
+                                            </div>
+                                            <div className="grid grid-cols-1 gap-4">
+                                                {categories.slice(1, 5).map((c, i) => (
+                                                    <div key={i} className="flex justify-between items-center p-4 bg-white/5 rounded-2xl border border-white/5 group">
+                                                        <span className="font-bold text-sm">{c}</span>
+                                                        <span className="text-indigo-400 font-black">{(30 - i*5)}%</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {view === 'profile' && (
+                                <div className="max-w-6xl mx-auto animate-in fade-in transition-all duration-500">
+                                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+                                        <div className="card p-10 flex flex-col items-center text-center">
+                                            <div className="w-40 h-40 rounded-[2.5rem] overflow-hidden border-4 border-indigo-600/20 mb-6 shadow-2xl shadow-indigo-500/10">
+                                                <img src={userProfile.avatar} className="w-full h-full object-cover" />
+                                            </div>
+                                            <h2 className="text-2xl font-black mb-1">{userProfile.name}</h2>
+                                            <span className="px-3 py-1 bg-indigo-500 text-white text-[10px] font-black uppercase rounded-lg mb-8">{userProfile.level}</span>
+                                            
+                                            <div className="w-full grid grid-cols-2 gap-4 text-left">
+                                                <div className="p-5 bg-white/5 rounded-2xl">
+                                                    <p className="text-[10px] font-bold text-slate-500 uppercase mb-1">Lifetime Value</p>
+                                                    <p className="text-lg font-black text-white">{userProfile.spent}</p>
+                                                </div>
+                                                <div className="p-5 bg-white/5 rounded-2xl">
+                                                    <p className="text-[10px] font-bold text-slate-500 uppercase mb-1">Total Orders</p>
+                                                    <p className="text-lg font-black text-white">{userProfile.orders}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="lg:col-span-2 space-y-8">
+                                            <div className="card p-10">
+                                                <h3 className="text-xl font-bold mb-8">Purchase Affinity</h3>
+                                                <div className="space-y-6">
+                                                    {['Electronics', 'Fashion', 'Home Decor'].map((cat, i) => (
+                                                        <div key={i} className="space-y-2">
+                                                            <div className="flex justify-between text-xs font-bold uppercase tracking-wider text-slate-400">
+                                                                <span>{cat}</span>
+                                                                <span className="text-indigo-400">{(90 - i*20)}% Affinity</span>
+                                                            </div>
+                                                            <div className="h-2.5 bg-white/5 rounded-full overflow-hidden">
+                                                                <div className="h-full bg-indigo-500 rounded-full" style={{ width: `${90 - i*20}%` }}></div>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-8">
+                                                <div className="card p-8 bg-emerald-500/10 border-emerald-500/20">
+                                                    <h4 className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest mb-2 font-mono">Next Predicted Purchase</h4>
+                                                    <p className="font-bold text-lg leading-tight uppercase tracking-tighter">Premium Noise Cancelling Headphones</p>
+                                                </div>
+                                                <div className="card p-8 bg-amber-500/10 border-amber-500/20">
+                                                    <h4 className="text-[10px] font-bold text-amber-400 uppercase tracking-widest mb-2 font-mono">Loyalty Reward</h4>
+                                                    <p className="font-bold text-lg leading-tight uppercase tracking-tighter">15% Discount Voucher Active</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </main>
+                    </div>
                 </div>
             );
         }
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<Dashboard />);
-
     </script>
 </body>
 </html>
