@@ -1,13 +1,22 @@
-import os
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 import pickle, numpy as np
 import pandas as pd
+import os # Added import for os module
 
 app = FastAPI()
 
 # Path configuration for Vercel
 API_DIR = os.path.dirname(os.path.abspath(__file__))
+# Root dir for index.html serving fallback
+ROOT_DIR = os.path.dirname(API_DIR)
+
+# Mount static files
+static_dir = os.path.join(API_DIR, "static")
+if not os.path.exists(static_dir):
+    os.makedirs(static_dir)
+app.mount("/static", StaticFiles(directory=static_dir), name="static")
 MODEL_PATH = os.path.join(API_DIR, "models", "recommender.pkl")
 DATA_PATH = os.path.join(API_DIR, "data", "processed", "user_item_matrix.csv")
 
