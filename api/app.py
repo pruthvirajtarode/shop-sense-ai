@@ -1,5 +1,6 @@
 import os
 from fastapi import FastAPI
+from fastapi.responses import FileResponse
 import pickle, numpy as np
 import pandas as pd
 
@@ -35,6 +36,13 @@ try:
 except Exception as e:
     print(f"❌ Error loading products: {e}")
 
+@app.get("/")
+def read_root():
+    index_path = os.path.join(BASE_DIR, "index.html")
+    if os.path.exists(index_path):
+        return FileResponse(index_path)
+    return {"message": "Welcome to ShopSense AI API. The dashboard file (index.html) was not found in the root directory.", "base_dir": BASE_DIR}
+
 @app.get("/api/status")
 def home():
     return {
@@ -44,7 +52,7 @@ def home():
         "products_count": len(products_cache)
     }
 
-@app.get("/recommend/{user_id}")
+@app.get("/api/recommend/{user_id}")
 def recommend(user_id: int, n: int = 10):
     if model is None:
         return {"error": "Model not trained."}
@@ -77,11 +85,11 @@ def recommend(user_id: int, n: int = 10):
         "recommendations": list(recommended)[:n]
     }
 
-@app.get("/products")
+@app.get("/api/products")
 def get_products():
     return products_cache
 
-@app.get("/categories")
+@app.get("/api/categories")
 def get_categories():
     return categories_cache
 

@@ -1,5 +1,10 @@
 {
   "version": 2,
+  "functions": {
+    "api/index.py": {
+      "includeFiles": ["models/**", "data/**", "index.html"]
+    }
+  },
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/index.py" }
   ]
