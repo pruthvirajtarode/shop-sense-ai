@@ -6,10 +6,10 @@ import pandas as pd
 
 app = FastAPI()
 
-# Absolute paths for Vercel
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MODEL_PATH = os.path.join(BASE_DIR, "models", "recommender.pkl")
-DATA_PATH = os.path.join(BASE_DIR, "data", "processed", "user_item_matrix.csv")
+# Path configuration for Vercel
+API_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL_PATH = os.path.join(API_DIR, "models", "recommender.pkl")
+DATA_PATH = os.path.join(API_DIR, "data", "processed", "user_item_matrix.csv")
 
 ## 📦 Model & Data Preloading
 model = None
@@ -24,7 +24,7 @@ except Exception as e:
     print(f"❌ Error loading model: {e}")
 
 try:
-    products_path = os.path.join(BASE_DIR, "data", "processed", "products.csv")
+    products_path = os.path.join(API_DIR, "data", "processed", "products.csv")
     if os.path.exists(products_path):
         df = pd.read_csv(products_path)
         products_cache = df.to_dict("records")
@@ -38,10 +38,10 @@ except Exception as e:
 
 @app.get("/")
 def read_root():
-    index_path = os.path.join(BASE_DIR, "index.html")
+    index_path = os.path.join(API_DIR, "index.html")
     if os.path.exists(index_path):
         return FileResponse(index_path)
-    return {"message": "Welcome to ShopSense AI API. The dashboard file (index.html) was not found in the root directory.", "base_dir": BASE_DIR}
+    return {"status": "api_only", "message": "ShopSense AI API is online. Dashboard (index.html) not found in api folder."}
 
 @app.get("/api/status")
 def home():

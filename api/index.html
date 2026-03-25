@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ShopSense AI | Intelligent Recommendations Dashboard</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- React & Babel for single-file interactivity -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        body { font-family: 'Outfit', sans-serif; background-color: #0f172a; color: #f8fafc; }
+        .glass { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.05); }
+        .gradient-text { background: linear-gradient(to right, #818cf8, #c084fc); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+        .product-card:hover { transform: translateY(-5px); border-color: #6366f1; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+        const DEMO_USERS = ['10001', '10002', '10003', '10004', '10005'];
+
+        function Dashboard() {
+            const [view, setView] = useState('recommendations');
+            const [userId, setUserId] = useState('10001');
+            const [recommendations, setRecommendations] = useState([]);
+            const [allProducts, setAllProducts] = useState([]);
+            const [categories, setCategories] = useState(['All']);
+            const [loading, setLoading] = useState(false);
+            const [search, setSearch] = useState('');
+            const [selectedCat, setSelectedCat] = useState('All');
+
+            const chartRef = useRef(null);
+            const chartInstance = useRef(null);
+
+            // Fetch initial products
+            useEffect(() => {
+                const loadData = async () => {
+                    try {
+                        const [prodRes, catRes] = await Promise.all([
+                            fetch('/api/products'),
+                            fetch('/api/categories')
+                        ]);
+                        const prods = await prodRes.json();
+                        const cats = await catRes.json();
+                        setAllProducts(prods);
+                        setCategories(cats.includes('All') ? cats : ['All', ...cats]);
+                    } catch (err) {
+                        console.error("Failed to load products/categories", err);
+                    }
+                };
+                loadData();
+            }, []);
+
+            // Generate Recommendations
+            const generateRecommendations = async (id = userId) => {
+                setLoading(true);
+                try {
+                    const res = await fetch(`/api/recommend/${id}?n=10`);
+                    const data = await res.json();
+                    if(data.recommendations) {
+                        const fullRecs = data.recommendations.map(id => {
+                            const found = allProducts.find(p => p.StockCode === id || p.product_id === id);
+                            return found || { StockCode: id, Description: `Premium Product ${id}`, Category: 'AI Choice', Price: 999 };
+                        });
+                        setRecommendations(fullRecs);
+                        setUserId(id);
+                    } else if (data.error) {
+                        alert(data.error);
+                    }
+                } catch (err) {
+                    alert("Error reaching engine. Ensure the API is healthy.");
+                }
+                setLoading(false);
+            };
+
+            // Handle View Changes
+            useEffect(() => {
+                if (view === 'analytics' && chartRef.current) {
+                    setTimeout(renderChart, 100);
+                }
+            }, [view]);
+
+            const renderChart = () => {
+                if (chartInstance.current) chartInstance.current.destroy();
+                if (!chartRef.current) return;
+                const ctx = chartRef.current.getContext('2d');
+                
+                const counts = {};
+                allProducts.forEach(p => {
+                    const cat = p.Category || 'Other';
+                    counts[cat] = (counts[cat] || 0) + 1;
+                });
+
+                chartInstance.current = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: Object.keys(counts).slice(0, 6),
+                        datasets: [{
+                            data: Object.values(counts).slice(0, 6),
+                            backgroundColor: ['#6366f1', '#a855f7', '#f43f5e', '#10b981', '#f59e0b', '#3b82f6'],
+                            borderWidth: 0
+                        }]
+                    },
+                    options: {
+                        cutout: '70%',
+                        responsive: true,
+                        plugins: { 
+                            legend: { position: 'bottom', labels: { color: '#94a3b8', padding: 20, font: { family: 'Outfit', size: 12 } } } 
+                        }
+                    }
+                });
+            };
+
+            const filteredProducts = allProducts.filter(p => {
+                const matchesSearch = p.Description?.toLowerCase().includes(search.toLowerCase()) || 
+                                     p.StockCode?.toString().includes(search);
+                const matchesCat = selectedCat === 'All' || p.Category === selectedCat;
+                return matchesSearch && matchesCat;
+            });
+
+            return (
+                <div className="min-h-screen flex flex-col items-center pb-20">
+                    {/* Header */}
+                    <header className="w-full max-w-7xl px-8 py-8 flex flex-col md:flex-row justify-between items-center gap-6">
+                        <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-3xl shadow-lg shadow-indigo-500/20">🛍️</div>
+                            <div>
+                                <h1 className="text-3xl font-extrabold gradient-text tracking-tight">ShopSense AI</h1>
+                                <p className="text-slate-500 text-xs font-semibold uppercase tracking-widest mt-1">Next-Gen Recommendations</p>
+                            </div>
+                        </div>
+                        <nav className="flex gap-2 glass rounded-2xl p-1.5 text-sm font-semibold shadow-xl">
+                            {['recommendations', 'explorer', 'analytics'].map(v => (
+                                <button 
+                                    key={v}
+                                    onClick={() => setView(v)} 
+                                    className={`px-6 py-2.5 rounded-xl transition-all capitalize ${view === v ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'}`}>
+                                    {v}
+                                </button>
+                            ))}
+                        </nav>
+                    </header>
+
+                    <main className="w-full max-w-7xl px-8 py-4">
+                        {/* Recommendations View */}
+                        {view === 'recommendations' && (
+                            <section className="animate-in fade-in transition-all duration-500">
+                                <div className="glass rounded-[2.5rem] p-12 flex flex-col lg:flex-row items-center justify-between gap-16 mb-16 relative overflow-hidden border-indigo-500/10">
+                                    <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-600/10 blur-[100px] -z-10 rounded-full"></div>
+                                    <div className="flex-1">
+                                        <h2 className="text-5xl font-extrabold mb-6 leading-tight">Hyper-Personalized <br/><span className="text-indigo-400">Shopping Experiences.</span></h2>
+                                        <p className="text-slate-400 text-xl mb-10 max-w-xl">Our ALS-powered engine analyzes millions of interactions to predict exactly what your customers crave.</p>
+                                        
+                                        <div className="mb-8">
+                                            <p className="text-slate-500 text-sm font-bold uppercase tracking-wider mb-4">Try a demo user:</p>
+                                            <div className="flex flex-wrap gap-3">
+                                                {DEMO_USERS.map(id => (
+                                                    <button 
+                                                        key={id}
+                                                        onClick={() => generateRecommendations(id)}
+                                                        className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border ${userId === id ? 'bg-indigo-500/20 border-indigo-500 text-indigo-300' : 'bg-slate-800/40 border-slate-700 text-slate-400 hover:border-slate-500'}`}>
+                                                        ID: {id}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        <div className="flex gap-4 max-w-md p-2 bg-slate-900/80 rounded-3xl border border-slate-700 shadow-2xl">
+                                            <input 
+                                                type="text" 
+                                                value={userId}
+                                                onChange={(e) => setUserId(e.target.value)}
+                                                className="flex-1 bg-transparent rounded-2xl px-5 py-4 outline-none text-lg"
+                                                placeholder="Enter User ID..."
+                                            />
+                                            <button 
+                                                onClick={() => generateRecommendations()}
+                                                disabled={loading}
+                                                className="bg-indigo-600 hover:bg-indigo-500 px-10 py-4 rounded-[1.25rem] font-bold transition-all disabled:opacity-50 shadow-lg shadow-indigo-600/20 active:scale-95">
+                                                {loading ? 'Processing...' : 'Run Engine'}
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div className="w-full lg:w-1/3 flex justify-center relative">
+                                        <div className="w-72 h-72 rounded-[3rem] bg-indigo-500/10 border-2 border-indigo-500/20 flex items-center justify-center animate-pulse shadow-[0_0_50px_rgba(99,102,241,0.1)]">
+                                            <span className="text-9xl">✨</span>
+                                        </div>
+                                        <div className="absolute -bottom-4 -right-4 glass p-4 rounded-2xl flex items-center gap-3 animate-bounce">
+                                            <div className="w-3 h-3 rounded-full bg-emerald-500 animate-ping"></div>
+                                            <span className="text-xs font-bold uppercase tracking-tighter text-emerald-400">Live AI Active</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-8">
+                                    {recommendations.length > 0 ? (
+                                        recommendations.map((item, idx) => (
+                                            <div key={idx} className="glass rounded-3xl overflow-hidden p-7 product-card border border-white/5 transition-all group">
+                                                <div className="w-full aspect-square bg-slate-800/50 rounded-2xl mb-6 flex items-center justify-center text-6xl group-hover:scale-110 transition-transform duration-500 shadow-inner">📦</div>
+                                                <div className="flex justify-between items-start mb-2">
+                                                    <span className="text-[10px] text-indigo-400 font-black uppercase tracking-[0.2em]">{item.Category || 'Discovery'}</span>
+                                                    <span className="text-[10px] text-slate-500 font-mono">#{item.StockCode}</span>
+                                                </div>
+                                                <h3 className="font-bold text-lg mb-6 line-clamp-2 h-14 group-hover:text-indigo-300 transition-colors">{item.Description}</h3>
+                                                <div className="flex justify-between items-center pt-5 border-t border-slate-700/50">
+                                                    <div className="flex flex-col">
+                                                        <span className="text-slate-500 text-[10px] uppercase font-bold tracking-tighter">Price</span>
+                                                        <span className="text-white font-black text-xl">₹{item.Price || '799'}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-1 bg-yellow-400/10 px-2 py-1 rounded-lg">
+                                                        <span className="text-yellow-400 text-xs">★</span>
+                                                        <span className="text-yellow-400 text-xs font-bold">4.{Math.floor(Math.random()*9)}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))
+                                    ) : !loading && (
+                                        <div className="col-span-full py-32 text-center glass rounded-3xl border-dashed border-2 border-slate-700/50">
+                                            <span className="text-6xl mb-6 block">🔍</span>
+                                            <p className="text-slate-500 text-2xl font-light">Enter a User ID or select a demo to see the magic.</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </section>
+                        )}
+
+                        {/* Explorer View */}
+                        {view === 'explorer' && (
+                            <section className="animate-in slide-in-from-bottom transition-all">
+                                <div className="mb-12 flex flex-col md:flex-row gap-6 p-4 glass rounded-[2rem]">
+                                    <div className="flex-1 relative">
+                                        <input 
+                                            type="text" 
+                                            value={search}
+                                            onChange={(e) => setSearch(e.target.value)}
+                                            className="w-full bg-slate-900 border border-slate-700 rounded-2xl px-6 py-4 pl-14 outline-none focus:border-indigo-500 transition-all font-medium"
+                                            placeholder="Search product inventory..."
+                                        />
+                                        <span className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-500 text-xl">🔍</span>
+                                    </div>
+                                    <select 
+                                        value={selectedCat}
+                                        onChange={(e) => setSelectedCat(e.target.value)}
+                                        className="bg-slate-900 border border-slate-700 rounded-2xl px-8 py-4 outline-none font-bold text-slate-300 cursor-pointer hover:border-indigo-500 transition-all">
+                                        {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                                    </select>
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+                                    {filteredProducts.slice(0, 30).map((item, idx) => (
+                                        <div key={idx} className="glass rounded-2xl p-6 hover:bg-slate-800/80 cursor-pointer transition-all border border-white/5 hover:border-indigo-500/50 group">
+                                            <div className="text-[10px] text-slate-500 mb-2 font-mono">{item.StockCode}</div>
+                                            <div className="font-bold text-sm line-clamp-2 mb-4 h-10 group-hover:text-indigo-400 transition-colors">{item.Description}</div>
+                                            <div className="flex justify-between items-end mt-auto">
+                                                <div className="text-indigo-400 font-black text-base">₹{item.Price || '499'}</div>
+                                                <div className="text-[10px] bg-slate-700 px-2 py-1 rounded text-slate-300 group-hover:bg-indigo-600 transition-colors">{item.Category || 'General'}</div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </section>
+                        )}
+
+                        {/* Analytics View */}
+                        {view === 'analytics' && (
+                            <section className="animate-in fade-in transition-all flex flex-col items-center">
+                                <div className="glass rounded-[3rem] p-12 w-full max-w-4xl shadow-2xl relative border-white/5">
+                                    <div className="absolute -top-10 -left-10 w-40 h-40 bg-purple-600/10 blur-[60px] rounded-full"></div>
+                                    <div className="mb-12 text-center">
+                                        <h2 className="text-4xl font-black mb-3">Inventory Insights</h2>
+                                        <p className="text-slate-400 font-medium">Distribution of products across various shopping categories.</p>
+                                    </div>
+                                    <div className="flex flex-col lg:flex-row items-center gap-16">
+                                        <div className="w-full lg:w-1/2">
+                                            <canvas ref={chartRef} className="max-h-[350px]"></canvas>
+                                        </div>
+                                        <div className="w-full lg:w-1/2 grid grid-cols-1 gap-6">
+                                            <div className="bg-indigo-500/10 border border-indigo-500/20 p-8 rounded-[2rem] flex items-center justify-between group hover:bg-indigo-500/20 transition-all">
+                                                <div>
+                                                    <p className="text-slate-400 text-xs font-black uppercase tracking-widest mb-1">Total SKU Inventory</p>
+                                                    <p className="text-5xl font-black text-indigo-400">{allProducts.length}</p>
+                                                </div>
+                                                <div className="text-5xl opacity-40 group-hover:scale-125 transition-transform">📦</div>
+                                            </div>
+                                            <div className="bg-purple-500/10 border border-purple-500/20 p-8 rounded-[2rem] flex items-center justify-between group hover:bg-purple-500/20 transition-all">
+                                                <div>
+                                                    <p className="text-slate-400 text-xs font-black uppercase tracking-widest mb-1">Active Categories</p>
+                                                    <p className="text-5xl font-black text-purple-400">{categories.length - 1}</p>
+                                                </div>
+                                                <div className="text-5xl opacity-40 group-hover:scale-125 transition-transform">🏷️</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </section>
+                        )}
+                    </main>
+
+                    <footer className="mt-20 py-12 text-slate-500 text-sm border-t border-slate-800 w-full max-w-7xl flex flex-col md:flex-row justify-between items-center px-8 gap-4">
+                        <div className="flex items-center gap-4">
+                            <span className="font-bold text-slate-400 tracking-tighter text-lg">SHOPSENSE AI</span>
+                            <span className="text-slate-700">|</span>
+                            <span>© 2026 Professional AI Suite</span>
+                        </div>
+                        <div className="flex gap-8 font-bold text-xs uppercase tracking-widest italic text-indigo-500/50">
+                            <span>Vercel Edge Ready</span>
+                            <span>ALS Engine v2.4</span>
+                            <span>FastAPI Backend</span>
+                        </div>
+                    </footer>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<Dashboard />);
+
+    </script>
+</body>
+</html>
