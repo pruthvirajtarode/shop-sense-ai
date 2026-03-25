@@ -24,6 +24,9 @@ DATA_PATH = os.path.join(API_DIR, "data", "processed", "user_item_matrix.csv")
 model = None
 products_cache = []
 categories_cache = ["General"]
+matrix_cache = None
+product_ids_cache = []
+users_cache = []
 
 try:
     if os.path.exists(MODEL_PATH):
@@ -45,6 +48,16 @@ try:
 except Exception as e:
     print(f"❌ Error loading products: {e}")
 
+try:
+    if os.path.exists(DATA_PATH):
+        uif = pd.read_csv(DATA_PATH)
+        matrix_cache = uif.iloc[:, 1:].values
+        product_ids_cache = list(uif.columns[1:])
+        users_cache = list(uif.iloc[:, 0].values)
+        print(f"✅ Loaded matrix: {matrix_cache.shape} and {len(product_ids_cache)} item IDs")
+except Exception as e:
+    print(f"❌ Error loading matrix: {e}")
+
 @app.get("/")
 def read_root():
     index_path = os.path.join(API_DIR, "index.html")
@@ -62,36 +75,43 @@ def home():
     }
 
 @app.get("/api/recommend/{user_id}")
-def recommend(user_id: int, n: int = 10):
-    if model is None:
-        return {"error": "Model not trained."}
+def recommend(user_id: str, n: int = 10):
+    if model is None or matrix_cache is None:
+        return {"error": "Engine initialization incomplete. Please try again in a moment."}
 
-    users = model.get("users", [])
-    if user_id not in users:
-        return {"error": f"User {user_id} not found in database. Try IDs like 10001, 10002..."}
+    try:
+        search_id = int(user_id)
+    except:
+        search_id = user_id
 
-    idx = users.index(user_id)
+    users = model.get("users", users_cache)
+    if search_id not in users:
+        if str(search_id) in [str(u) for u in users]:
+            search_id = str(search_id) if str(search_id) in users else int(search_id)
+        else:
+            return {"error": f"User {user_id} not found in database. Try IDs like 10001, 10002..."}
+
+    idx = users.index(search_id)
     sim = model["similarity"][idx]
     top_sim_users = np.argsort(sim)[-n-1:-1][::-1]
 
-    # Load matrix only when needed or keep in memory if small
-    uif = pd.read_csv(DATA_PATH)
-    mat = uif.iloc[:, 1:].values
-    product_ids = list(uif.columns[1:])
-
-    recommended = set()
+    recommended = []
+    seen = set()
     for u in top_sim_users:
-        user_row = mat[u]
+        user_row = matrix_cache[u]
         top_items = np.where(user_row > 0)[0]
         for item_idx in top_items:
-            recommended.add(product_ids[item_idx])
+            pid = product_ids_cache[item_idx]
+            if pid not in seen:
+                recommended.append(pid)
+                seen.add(pid)
             if len(recommended) >= n: break
         if len(recommended) >= n: break
 
     return {
         "user": user_id,
         "top_n": n,
-        "recommendations": list(recommended)[:n]
+        "recommendations": recommended
     }
 
 @app.get("/api/products")
