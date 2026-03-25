@@ -34,6 +34,7 @@ const { useState, useEffect, useRef } = React;
         function Dashboard() {
             const [view, setView] = useState('recommendations');
             const [userId, setUserId] = useState('10001');
+            const [userProfile, setUserProfile] = useState({ name: 'Alex Thompson', level: 'Platinum Member', avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100' });
             const [recommendations, setRecommendations] = useState([]);
             const [allProducts, setAllProducts] = useState([]);
             const [categories, setCategories] = useState(['All']);
@@ -160,7 +161,7 @@ const { useState, useEffect, useRef } = React;
                             </div>
                         </div>
                         <nav className="flex gap-2 glass rounded-2xl p-1.5 text-sm font-semibold shadow-xl">
-                            {['recommendations', 'explorer', 'analytics'].map(v => (
+                            {['recommendations', 'explorer', 'analytics', 'profile'].map(v => (
                                 <button 
                                     key={v}
                                     onClick={() => setView(v)} 
@@ -169,6 +170,16 @@ const { useState, useEffect, useRef } = React;
                                 </button>
                             ))}
                         </nav>
+                        <div className="hidden lg:flex items-center gap-4 pl-6 border-l border-white/10">
+                            <div className="text-right">
+                                <p className="text-sm font-bold text-white leading-tight">{userProfile.name}</p>
+                                <p className="text-[10px] font-black uppercase tracking-widest text-indigo-400">{userProfile.level}</p>
+                            </div>
+                            <div className="w-12 h-12 rounded-2xl border-2 border-indigo-500/20 p-0.5 group cursor-pointer relative">
+                                <img src={userProfile.avatar} className="w-full h-full object-cover rounded-[0.8rem]" />
+                                <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 border-2 border-[#0f172a]"></div>
+                            </div>
+                        </div>
                     </header>
 
                     <main className="w-full max-w-7xl px-8 py-4">
@@ -331,6 +342,66 @@ const { useState, useEffect, useRef } = React;
                                                     <p className="text-5xl font-black text-purple-400">{categories.length - 1}</p>
                                                 </div>
                                                 <div className="text-5xl opacity-40 group-hover:scale-125 transition-transform">🏷️</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </section>
+                        )}
+
+                        {/* Profile View */}
+                        {view === 'profile' && (
+                            <section className="animate-in fade-in transition-all flex flex-col items-center">
+                                <div className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-3 gap-8">
+                                    <div className="lg:col-span-1 glass rounded-[3rem] p-10 flex flex-col items-center text-center gap-6 border-white/5">
+                                        <div className="w-40 h-40 rounded-[3.5rem] p-1 bg-gradient-to-br from-indigo-500 to-purple-600">
+                                            <img src={userProfile.avatar} className="w-full h-full object-cover rounded-[3.2rem]" />
+                                        </div>
+                                        <div>
+                                            <h2 className="text-3xl font-black mb-1">{userProfile.name}</h2>
+                                            <p className="text-indigo-400 font-bold uppercase tracking-widest text-xs">{userProfile.level}</p>
+                                        </div>
+                                        <div className="w-full h-px bg-white/10 my-4"></div>
+                                        <div className="w-full grid grid-cols-2 gap-4">
+                                            <div className="bg-white/5 p-4 rounded-3xl">
+                                                <p className="text-slate-500 text-[10px] font-bold uppercase mb-1">Total Spent</p>
+                                                <p className="text-xl font-black text-white">₹48,290</p>
+                                            </div>
+                                            <div className="bg-white/5 p-4 rounded-3xl">
+                                                <p className="text-slate-500 text-[10px] font-bold uppercase mb-1">Orders</p>
+                                                <p className="text-xl font-black text-white">124</p>
+                                            </div>
+                                        </div>
+                                        <button className="w-full mt-4 bg-white/5 hover:bg-white/10 border border-white/10 py-4 rounded-2xl font-bold text-sm transition-all">Edit Preferences</button>
+                                    </div>
+                                    <div className="lg:col-span-2 flex flex-col gap-8">
+                                        <div className="glass rounded-[3rem] p-10 border-white/5 shadow-2xl">
+                                            <h3 className="text-xl font-black mb-8 flex items-center gap-3">
+                                                <span className="w-8 h-8 rounded-xl bg-orange-500/20 text-orange-400 flex items-center justify-center text-sm">📈</span>
+                                                Shopping Trends
+                                            </h3>
+                                            <div className="space-y-6">
+                                                {['Electronics', 'Footwear', 'Accessories'].map((cat, i) => (
+                                                    <div key={i} className="flex flex-col gap-3">
+                                                        <div className="flex justify-between items-center text-sm font-bold">
+                                                            <span>{cat}</span>
+                                                            <span className="text-slate-500">{(85 - i*20)}% Engagement</span>
+                                                        </div>
+                                                        <div className="w-full h-3 bg-white/5 rounded-full overflow-hidden">
+                                                            <div className="h-full bg-indigo-500 rounded-full shadow-[0_0_10px_rgba(99,102,241,0.5)]" style={{ width: `${85 - i*20}%` }}></div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                            <div className="glass rounded-[3rem] p-8 border-white/5 bg-indigo-500/10 shadow-xl">
+                                                <h4 className="text-xs font-black uppercase tracking-widest text-indigo-400 mb-2">AI Insights</h4>
+                                                <p className="text-sm font-medium leading-relaxed">Frequent interest in tech gadget ecosystem suggests high potential for cross-device recommendations.</p>
+                                            </div>
+                                            <div className="glass rounded-[3rem] p-8 border-white/5 bg-purple-500/10 shadow-xl">
+                                                <h4 className="text-xs font-black uppercase tracking-widest text-purple-400 mb-2">Next Milestone</h4>
+                                                <p className="text-sm font-medium leading-relaxed">Spend ₹1,710 more to unlock 'Diamond Tier' and 5% additional cashback on all AI choices.</p>
                                             </div>
                                         </div>
                                     </div>
