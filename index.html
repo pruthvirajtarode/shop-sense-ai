@@ -17,7 +17,7 @@
     <style>
         body { font-family: 'Outfit', sans-serif; background-color: #0f172a; color: #f8fafc; }
         .glass { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.05); }
-        .gradient-text { background: linear-gradient(to right, #818cf8, #c084fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .gradient-text { background: linear-gradient(to right, #818cf8, #c084fc); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
         .product-card:hover { transform: translateY(-5px); border-color: #6366f1; }
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
@@ -49,8 +49,8 @@ const { useState, useEffect, useRef } = React;
                 const loadData = async () => {
                     try {
                         const [prodRes, catRes] = await Promise.all([
-                            fetch('/api/api/products'),
-                            fetch('/api/api/categories')
+                            fetch('/api/products'),
+                            fetch('/api/categories')
                         ]);
                         const prods = await prodRes.json();
                         const cats = await catRes.json();

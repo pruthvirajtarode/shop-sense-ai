@@ -77,11 +77,11 @@ def recommend(user_id: int, n: int = 10):
         "recommendations": list(recommended)[:n]
     }
 
-@app.get("/api/products")
+@app.get("/products")
 def get_products():
     return products_cache
 
-@app.get("/api/categories")
+@app.get("/categories")
 def get_categories():
     return categories_cache
 
