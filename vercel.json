@@ -2,7 +2,7 @@
   "version": 2,
   "functions": {
     "api/index.py": {
-      "includeFiles": ["models/**", "data/**", "index.html"]
+      "includeFiles": "{models/**,data/**,index.html}"
     }
   },
   "rewrites": [
