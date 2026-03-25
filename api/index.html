@@ -43,6 +43,24 @@ const { useState, useEffect, useRef } = React;
 
             const chartRef = useRef(null);
             const chartInstance = useRef(null);
+            const [mounted, setMounted] = useState(false);
+            useEffect(() => setMounted(true), []);
+
+            const ProductImage = ({ description, stockCode }) => {
+                const desc = description?.toLowerCase() || '';
+                let src = '';
+                if (desc.includes('shoe') || desc.includes('sneaker') || desc.includes('footwear')) src = "/static/images/sneakers.png";
+                else if (desc.includes('watch') || desc.includes('accessory') || desc.includes('jewelry')) src = "/static/images/watch.png";
+                else if (desc.includes('gadget') || desc.includes('laptop') || desc.includes('phone') || desc.includes('camera') || desc.includes('tech')) src = "/static/images/gadgets.png";
+                else if (desc.includes('earbud') || desc.includes('electronic') || desc.includes('sound') || desc.includes('headphone')) src = "/static/images/earbuds.png";
+                else if (desc.includes('jean') || desc.includes('clothing') || desc.includes('shirt') || desc.includes('pant') || desc.includes('hoodie') || desc.includes('jacket')) src = "/static/images/jeans.png";
+                
+                if (!src) {
+                    const tag = desc.split(' ').slice(-1)[0] || 'product';
+                    src = `https://loremflickr.com/400/400/${tag}?lock=${stockCode || '1'}`;
+                }
+                return <img src={src} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={description} loading="lazy" />;
+            };
 
             // Fetch initial products
             useEffect(() => {
@@ -217,12 +235,7 @@ const { useState, useEffect, useRef } = React;
                                         recommendations.map((item, idx) => (
                                             <div key={idx} className="glass rounded-[2rem] overflow-hidden p-6 product-card border border-white/5 transition-all group hover:bg-white/[0.03]">
                                                 <div className="w-full aspect-square bg-slate-800/40 rounded-3xl mb-6 relative overflow-hidden flex items-center justify-center">
-                                                    {item.Description?.toLowerCase().includes('shoe') || item.Description?.toLowerCase().includes('sneaker') || item.Description?.toLowerCase().includes('footwear') ? <img src="/static/images/sneakers.png" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" /> :
-                                                     item.Description?.toLowerCase().includes('watch') || item.Description?.toLowerCase().includes('accessory') || item.Description?.toLowerCase().includes('jewelry') ? <img src="/static/images/watch.png" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" /> :
-                                                     item.Description?.toLowerCase().includes('gadget') || item.Description?.toLowerCase().includes('laptop') || item.Description?.toLowerCase().includes('phone') || item.Description?.toLowerCase().includes('camera') || item.Description?.toLowerCase().includes('tech') ? <img src="/static/images/gadgets.png" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" /> :
-                                                     item.Description?.toLowerCase().includes('earbud') || item.Description?.toLowerCase().includes('electronic') || item.Description?.toLowerCase().includes('sound') || item.Description?.toLowerCase().includes('headphone') ? <img src="/static/images/earbuds.png" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" /> :
-                                                     item.Description?.toLowerCase().includes('jean') || item.Description?.toLowerCase().includes('clothing') || item.Description?.toLowerCase().includes('shirt') || item.Description?.toLowerCase().includes('pant') || item.Description?.toLowerCase().includes('hoodie') || item.Description?.toLowerCase().includes('jacket') ? <img src="/static/images/jeans.png" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" /> :
-                                                     <img src="/static/images/hero.png" className="w-full h-full object-cover opacity-30 group-hover:scale-110 transition-transform duration-700 blur-[2px]" />}
+                                                    <ProductImage description={item.Description} stockCode={item.StockCode} />
                                                     <div className="absolute top-4 right-4 glass px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest text-indigo-400 backdrop-blur-md">98% Match</div>
                                                 </div>
                                                 <div className="flex justify-between items-start mb-2">
@@ -275,12 +288,15 @@ const { useState, useEffect, useRef } = React;
                                 </div>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-6">
                                     {filteredProducts.slice(0, 30).map((item, idx) => (
-                                        <div key={idx} className="glass rounded-2xl p-6 hover:bg-slate-800/80 cursor-pointer transition-all border border-white/5 hover:border-indigo-500/50 group">
+                                        <div key={idx} className="glass rounded-3xl p-5 hover:bg-white/[0.03] cursor-pointer transition-all border border-white/5 hover:border-indigo-500/50 group">
+                                            <div className="w-full aspect-[4/3] bg-slate-800/40 rounded-2xl mb-4 overflow-hidden">
+                                                <ProductImage description={item.Description} stockCode={item.StockCode} />
+                                            </div>
                                             <div className="text-[10px] text-slate-500 mb-2 font-mono">{item.StockCode}</div>
-                                            <div className="font-bold text-sm line-clamp-2 mb-4 h-10 group-hover:text-indigo-400 transition-colors">{item.Description}</div>
+                                            <div className="font-bold text-sm line-clamp-2 mb-4 h-10 group-hover:text-indigo-400 transition-colors uppercase tracking-tighter">{item.Description}</div>
                                             <div className="flex justify-between items-end mt-auto">
                                                 <div className="text-indigo-400 font-black text-base">₹{item.Price || '499'}</div>
-                                                <div className="text-[10px] bg-slate-700 px-2 py-1 rounded text-slate-300 group-hover:bg-indigo-600 transition-colors">{item.Category || 'General'}</div>
+                                                <div className="text-[9px] bg-slate-800 px-2 py-1 rounded font-bold text-slate-400 group-hover:bg-indigo-600 group-hover:text-white transition-colors">{item.Category || 'General'}</div>
                                             </div>
                                         </div>
                                     ))}
